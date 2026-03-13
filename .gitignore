@@ -1,0 +1,6 @@
+# Mini README: Local/temporary files to exclude from version control.
+.venv/
+__pycache__/
+*.pyc
+iotdash.db
+.env

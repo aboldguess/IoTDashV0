@@ -1,0 +1,14 @@
+# requirements.txt
+# Mini README: Python dependencies for IoTDashV0. Keep versions modern and audited.
+fastapi==0.115.12
+uvicorn[standard]==0.34.0
+jinja2==3.1.6
+sqlalchemy==2.0.40
+bcrypt==5.0.0
+python-multipart==0.0.20
+itsdangerous==2.2.0
+pydantic-settings==2.8.1
+stripe==12.0.1
+email-validator==2.2.0
+
+httpx==0.28.1

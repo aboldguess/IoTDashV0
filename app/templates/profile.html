@@ -1,0 +1,22 @@
+{# Mini README: User profile and subscription management page with Stripe hooks. #}
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h1>My Details</h1>
+  <form method="post" action="/profile">
+    <label>Full Name<input name="full_name" value="{{ user.full_name }}"></label>
+    <label>Profile Picture URL<input name="profile_picture_url" value="{{ user.profile_picture_url }}"></label>
+    <button type="submit">Save Profile</button>
+  </form>
+</section>
+<section class="card">
+  <h2>Manage Subscription</h2>
+  <p>Current tier: {{ user.subscription_tier.name if user.subscription_tier else 'None' }}</p>
+  <ul>
+    {% for tier in tiers %}
+    <li><strong>{{ tier.name }}</strong> - ${{ '%.2f'|format(tier.price_monthly) }}/month - Features: {{ tier.included_features }}</li>
+    {% endfor %}
+  </ul>
+  <p>Stripe checkout is enabled when STRIPE_SECRET_KEY is configured.</p>
+</section>
+{% endblock %}

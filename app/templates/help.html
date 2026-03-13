@@ -1,0 +1,15 @@
+{# Mini README: Learning Zone with FAQ-style support and quick-start info. #}
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h1>Learning Zone (Help + FAQ)</h1>
+  <p>Quick start:</p>
+  <ol>
+    <li>Create widgets on Dashboard.</li>
+    <li>Publish sensor data to <code>/api/sensor/publish</code> with API key.</li>
+    <li>Use chart/switch/map controls for your devices.</li>
+  </ol>
+  <h3>FAQ</h3>
+  <p>{{ config.help_markdown }}</p>
+</section>
+{% endblock %}
