@@ -3,6 +3,7 @@
 {% block content %}
 <h1>Welcome, {{ user.full_name or user.email }}</h1>
 <p><strong>Your device API key:</strong> <code>{{ user.api_key }}</code> (use this in POST /api/sensor/publish)</p>
+{% if flash %}<p class="flash">{{ flash }}</p>{% endif %}
 <div class="grid2">
   <section class="card">
     <h3>Add Widget</h3>
@@ -44,6 +45,19 @@
   -F "topic=sensors/temp" \
   -F "value=24.8"</code></pre>
   </details>
+</section>
+
+<section class="card">
+  <h3>Your Widgets</h3>
+  {% if widgets %}
+  <ul>
+    {% for widget in widgets %}
+    <li><strong>{{ widget.name }}</strong> ({{ widget.widget_type }}){% if widget.topic %} — topic: <code>{{ widget.topic }}</code>{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>No widgets yet. Add your first widget using the form above.</p>
+  {% endif %}
 </section>
 
 <section class="card">

@@ -18,7 +18,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.config import settings
 from app.database import Base, SessionLocal, engine, get_db
 from app.deps import get_current_user, require_admin
-from app.models import SiteConfig, SubscriptionTier, User
+from app.models import DashboardWidget, SiteConfig, SubscriptionTier, User
 from app.routers import admin, auth, dashboard
 from app.security import generate_api_key, hash_password
 
@@ -82,8 +82,10 @@ def login_page(request: Request):
 
 
 @app.get("/dashboard")
-def dashboard_page(request: Request, user: User = Depends(get_current_user)):
-    return templates.TemplateResponse("dashboard.html", {"request": request, "user": user})
+def dashboard_page(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    widgets = db.execute(select(DashboardWidget).where(DashboardWidget.owner_id == user.id).order_by(DashboardWidget.created_at.desc())).scalars().all()
+    flash = request.session.pop("flash", None)
+    return templates.TemplateResponse("dashboard.html", {"request": request, "user": user, "widgets": widgets, "flash": flash})
 
 
 @app.get("/help")
