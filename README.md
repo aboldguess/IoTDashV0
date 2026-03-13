@@ -94,12 +94,24 @@ gunicorn -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:$PORT --wo
 ---
 
 ## API examples for IoT devices
-Publish a sensor value:
+Publish a sensor value (recommended Bearer auth header):
 ```bash
 curl -X POST http://localhost:8000/api/sensor/publish \
+  -H "Authorization: Bearer YOUR_API_KEY" \
   -F "topic=sensors/temp" \
-  -F "value=24.8" \
-  -F "api_key=YOUR_API_KEY"
+  -F "value=24.8"
+```
+
+Alternative accepted auth formats:
+- `X-API-Key: YOUR_API_KEY` header
+- `api_key=YOUR_API_KEY` form field (legacy)
+
+Your current setup template (as requested):
+```bash
+curl -X POST http://192.168.56.1:8001/api/sensor/publish \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "topic=sensors/temp" \
+  -F "value=24.8"
 ```
 
 ---

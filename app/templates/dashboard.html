@@ -29,6 +29,24 @@
   </section>
 </div>
 <section class="card">
+  <h3>Device API Integration (Your Current Setup)</h3>
+  <p>
+    From your IoT devices on the same network, post sensor data to:
+    <code>http://192.168.56.1:8001/api/sensor/publish</code>
+  </p>
+  <p><strong>Recommended authorization header:</strong> <code>Authorization: Bearer {{ user.api_key }}</code></p>
+  <p><strong>Alternative header:</strong> <code>X-API-Key: {{ user.api_key }}</code></p>
+  <p><strong>Legacy form field:</strong> include <code>api_key={{ user.api_key }}</code> in form data.</p>
+  <details>
+    <summary>Example curl command (template for your devices)</summary>
+    <pre><code>curl -X POST http://192.168.56.1:8001/api/sensor/publish \
+  -H "Authorization: Bearer {{ user.api_key }}" \
+  -F "topic=sensors/temp" \
+  -F "value=24.8"</code></pre>
+  </details>
+</section>
+
+<section class="card">
   <h3>Live Sensor Preview</h3>
   <canvas id="sensorChart" height="90"></canvas>
 </section>
