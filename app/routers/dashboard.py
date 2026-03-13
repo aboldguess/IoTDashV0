@@ -8,7 +8,8 @@ import json
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Form, Header, HTTPException
+from fastapi import APIRouter, Depends, Form, Header, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
@@ -17,10 +18,12 @@ from app.deps import get_current_user
 from app.models import ActuatorCommand, DashboardWidget, SensorDataPoint, User
 
 router = APIRouter(prefix="/api", tags=["dashboard-api"])
+ALLOWED_WIDGET_TYPES = {"chart", "switch", "map", "gauge", "text"}
 
 
 @router.post("/widgets")
 def create_widget(
+    request: Request,
     name: str = Form(...),
     widget_type: str = Form(...),
     topic: str = Form(""),
@@ -28,9 +31,32 @@ def create_widget(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    widget = DashboardWidget(owner_id=user.id, name=name, widget_type=widget_type, topic=topic, config_json=config_json)
+    cleaned_widget_type = widget_type.strip().lower()
+    if cleaned_widget_type not in ALLOWED_WIDGET_TYPES:
+        raise HTTPException(status_code=400, detail="Invalid widget type")
+
+    try:
+        parsed_config = json.loads(config_json or "{}")
+    except json.JSONDecodeError as exc:
+        if "text/html" in request.headers.get("accept", ""):
+            request.session["flash"] = f"Widget was not added: config must be valid JSON ({exc.msg})."
+            return RedirectResponse(url="/dashboard", status_code=303)
+        raise HTTPException(status_code=400, detail="Config JSON is invalid") from exc
+
+    widget = DashboardWidget(
+        owner_id=user.id,
+        name=name.strip(),
+        widget_type=cleaned_widget_type,
+        topic=topic.strip(),
+        config_json=json.dumps(parsed_config),
+    )
     db.add(widget)
     db.commit()
+
+    if "text/html" in request.headers.get("accept", ""):
+        request.session["flash"] = f"Widget '{widget.name}' added successfully."
+        return RedirectResponse(url="/dashboard", status_code=303)
+
     return {"ok": True, "widget_id": widget.id}
 
 
@@ -80,6 +106,7 @@ def latest_sensor_data(user: User = Depends(get_current_user), db: Session = Dep
 
 @router.post("/actuator/send")
 def send_command(
+    request: Request,
     target: str = Form(...),
     command: str = Form(...),
     user: User = Depends(get_current_user),
@@ -88,6 +115,11 @@ def send_command(
     cmd = ActuatorCommand(owner_id=user.id, target=target, command=command)
     db.add(cmd)
     db.commit()
+
+    if "text/html" in request.headers.get("accept", ""):
+        request.session["flash"] = f"Command '{command}' sent to {target}."
+        return RedirectResponse(url="/dashboard", status_code=303)
+
     return {"ok": True}
 
 
