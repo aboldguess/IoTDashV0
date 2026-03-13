@@ -6,7 +6,9 @@ Provides Adafruit IO-like primitives: feeds/topics, controls, and mixed widgets.
 
 import json
 
-from fastapi import APIRouter, Depends, Form, HTTPException
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Form, Header, HTTPException
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
@@ -33,8 +35,29 @@ def create_widget(
 
 
 @router.post("/sensor/publish")
-def publish_sensor(topic: str = Form(...), value: float = Form(...), api_key: str = Form(...), db: Session = Depends(get_db)):
-    user = db.execute(select(User).where(User.api_key == api_key)).scalar_one_or_none()
+def publish_sensor(
+    topic: str = Form(...),
+    value: float = Form(...),
+    api_key: str = Form(""),
+    authorization: Optional[str] = Header(default=None),
+    x_api_key: Optional[str] = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    """
+    Accepts API keys in three forms for device compatibility:
+    1) Form field `api_key` (legacy behavior)
+    2) `Authorization: Bearer <api_key>` header
+    3) `X-API-Key: <api_key>` header
+    """
+    resolved_api_key = (api_key or "").strip()
+    if not resolved_api_key and authorization:
+        scheme, _, token = authorization.partition(" ")
+        if scheme.lower() == "bearer" and token:
+            resolved_api_key = token.strip()
+    if not resolved_api_key and x_api_key:
+        resolved_api_key = x_api_key.strip()
+
+    user = db.execute(select(User).where(User.api_key == resolved_api_key)).scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid API key")
     point = SensorDataPoint(owner_id=user.id, topic=topic, value=value)
