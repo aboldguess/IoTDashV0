@@ -1,0 +1,42 @@
+{# Mini README: Admin control center for users, subscriptions, and site config. #}
+{% extends "base.html" %}
+{% block content %}
+<h1>Admin Control Center</h1>
+<div class="grid2">
+  <section class="card">
+    <h3>Manage Users</h3>
+    <table>
+      <tr><th>Email</th><th>Admin</th><th>Action</th></tr>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.email }}</td>
+        <td>{{ 'Yes' if u.is_admin else 'No' }}</td>
+        <td>
+          <form method="post" action="/admin/api/users/{{ u.id }}/toggle-admin"><button type="submit">Toggle Admin</button></form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </section>
+  <section class="card">
+    <h3>Subscription Tier CRUD</h3>
+    <form method="post" action="/admin/api/tiers">
+      <label>Name<input name="name" required></label>
+      <label>Price monthly<input name="price_monthly" type="number" step="0.01" value="0"></label>
+      <label>Daily usage<input name="usage_limit_daily" type="number" value="1000"></label>
+      <label>Monthly usage<input name="usage_limit_monthly" type="number" value="30000"></label>
+      <label>Features<input name="included_features" value="basic_widgets,api"></label>
+      <label>Special offer<input name="special_offer"></label>
+      <button type="submit">Save Tier</button>
+    </form>
+  </section>
+</div>
+<section class="card">
+  <h3>Manage Site</h3>
+  <form method="post" action="/admin/api/site-config">
+    <label>Splash tagline<input name="splash_tagline" value="{{ config.splash_tagline }}"></label>
+    <label>Help text<textarea name="help_markdown">{{ config.help_markdown }}</textarea></label>
+    <button type="submit">Update Site Configuration</button>
+  </form>
+</section>
+{% endblock %}

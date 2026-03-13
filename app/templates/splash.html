@@ -1,0 +1,10 @@
+{# Mini README: Landing/splash page with clear CTA and on-screen usage guidance. #}
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <h1>Multipurpose IoT Dashboard</h1>
+  <p>{{ config.splash_tagline if config else 'Build, monitor, and monetize your IoT data securely.' }}</p>
+  <p>Get started in minutes: create account → generate API key → publish sensor values → build visual dashboards.</p>
+  <a class="btn" href="/login">Start Now</a>
+</section>
+{% endblock %}

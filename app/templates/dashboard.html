@@ -1,0 +1,35 @@
+{# Mini README: Main IoT dashboard page containing widget builder, chart, and actuator controls. #}
+{% extends "base.html" %}
+{% block content %}
+<h1>Welcome, {{ user.full_name or user.email }}</h1>
+<p><strong>Your device API key:</strong> <code>{{ user.api_key }}</code> (use this in POST /api/sensor/publish)</p>
+<div class="grid2">
+  <section class="card">
+    <h3>Add Widget</h3>
+    <form method="post" action="/api/widgets">
+      <label>Widget Name<input name="name" required></label>
+      <label>Type
+        <select name="widget_type">
+          <option>chart</option><option>switch</option><option>map</option><option>gauge</option><option>text</option>
+        </select>
+      </label>
+      <label>Topic<input name="topic" placeholder="sensors/temp"></label>
+      <label>Config JSON<textarea name="config_json">{"color":"#00d4ff"}</textarea></label>
+      <button type="submit">Add Widget</button>
+    </form>
+  </section>
+  <section class="card">
+    <h3>Actuator Control</h3>
+    <form method="post" action="/api/actuator/send">
+      <label>Target<input name="target" placeholder="relay/1"></label>
+      <label>Command<input name="command" placeholder="ON"></label>
+      <button type="submit">Send Command</button>
+    </form>
+    <p>Tip: devices poll actuator commands via your backend integrations.</p>
+  </section>
+</div>
+<section class="card">
+  <h3>Live Sensor Preview</h3>
+  <canvas id="sensorChart" height="90"></canvas>
+</section>
+{% endblock %}
