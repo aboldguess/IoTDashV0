@@ -18,7 +18,26 @@ from app.deps import get_current_user
 from app.models import ActuatorCommand, DashboardWidget, SensorDataPoint, User
 
 router = APIRouter(prefix="/api", tags=["dashboard-api"])
-ALLOWED_WIDGET_TYPES = {"chart", "switch", "map", "gauge", "text"}
+ALLOWED_WIDGET_TYPES = {"chart", "switch", "map", "gauge", "text", "door"}
+
+
+def parse_sensor_value(raw_value: str) -> float:
+    """Convert sensor payloads into a numeric value for storage and charting."""
+    normalized_value = raw_value.strip().lower()
+    if normalized_value in {"on", "open", "true"}:
+        return 1.0
+    if normalized_value in {"off", "closed", "false"}:
+        return 0.0
+
+    try:
+        return float(raw_value)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="Sensor value must be numeric or on/off style text") from exc
+
+
+def sensor_value_to_door_state(value: float) -> str:
+    """Interpret a numeric value as an OPEN/CLOSED door state."""
+    return "OPEN" if value >= 0.5 else "CLOSED"
 
 
 @router.post("/widgets")
@@ -63,7 +82,7 @@ def create_widget(
 @router.post("/sensor/publish")
 def publish_sensor(
     topic: str = Form(...),
-    value: float = Form(...),
+    value: str = Form(...),
     api_key: str = Form(""),
     authorization: Optional[str] = Header(default=None),
     x_api_key: Optional[str] = Header(default=None),
@@ -86,7 +105,9 @@ def publish_sensor(
     user = db.execute(select(User).where(User.api_key == resolved_api_key)).scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid API key")
-    point = SensorDataPoint(owner_id=user.id, topic=topic, value=value)
+    parsed_value = parse_sensor_value(value)
+
+    point = SensorDataPoint(owner_id=user.id, topic=topic, value=parsed_value)
     db.add(point)
     db.commit()
     return {"ok": True}
@@ -102,6 +123,33 @@ def latest_sensor_data(user: User = Depends(get_current_user), db: Session = Dep
     return [
         {"topic": p.topic, "value": p.value, "created_at": p.created_at.isoformat()} for p in reversed(points)
     ]
+
+
+@router.get("/sensor/door-status")
+def latest_door_status(
+    topic: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    latest_point = (
+        db.execute(
+            select(SensorDataPoint)
+            .where(SensorDataPoint.owner_id == user.id, SensorDataPoint.topic == topic)
+            .order_by(desc(SensorDataPoint.created_at))
+            .limit(1)
+        )
+        .scalars()
+        .first()
+    )
+    if not latest_point:
+        return {"topic": topic, "state": "UNKNOWN", "value": None, "created_at": None}
+
+    return {
+        "topic": topic,
+        "state": sensor_value_to_door_state(latest_point.value),
+        "value": latest_point.value,
+        "created_at": latest_point.created_at.isoformat(),
+    }
 
 
 @router.post("/actuator/send")

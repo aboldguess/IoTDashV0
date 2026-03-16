@@ -1,6 +1,7 @@
 /*
 Mini README:
 Modern UI styling for IoTDashV0 pages. Focuses on readability and professional presentation.
+Includes dedicated visual states for the simple OPEN/CLOSED door sensor widget.
 */
 :root { --bg:#0b1020; --card:#121a2f; --text:#e9edf7; --accent:#00d4ff; }
 *{box-sizing:border-box} body{margin:0;font-family:Inter,Segoe UI,Arial;background:linear-gradient(180deg,#0b1020,#111a34);color:var(--text)}
@@ -11,4 +12,12 @@ Modern UI styling for IoTDashV0 pages. Focuses on readability and professional p
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.hero{text-align:center;padding:80px 16px}.btn,button{background:var(--accent);color:#002029;border:none;padding:10px 16px;border-radius:10px;cursor:pointer;font-weight:700}
 label{display:block;margin:10px 0}input,select,textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #324063;background:#0e1730;color:var(--text)}
 .avatar{width:32px;height:32px;border-radius:50%}.flash{color:#ffd166}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #2b3758;padding:8px}
+.helper-text{font-size:.92rem;color:#b8c2de;margin-top:4px}
+.door-widget{border:1px solid #354773;border-radius:14px;padding:14px;transition:all .2s ease-in-out}
+.door-label{font-size:.9rem;opacity:.8;margin:0}
+.door-state{font-size:2rem;font-weight:800;letter-spacing:.04em;margin:6px 0}
+.door-meta{margin:0;font-size:.88rem;opacity:.85}
+.door-open{border-color:#1fc98a;background:linear-gradient(180deg,rgba(31,201,138,.18),rgba(31,201,138,.08))}
+.door-closed{border-color:#6a7ba6;background:linear-gradient(180deg,rgba(106,123,166,.24),rgba(106,123,166,.1))}
+.door-unknown{border-color:#d4a017;background:linear-gradient(180deg,rgba(212,160,23,.22),rgba(212,160,23,.08))}
 @media (max-width: 800px){.grid2{grid-template-columns:1fr}}
