@@ -8,14 +8,15 @@
   <section class="card">
     <h3>Add Widget</h3>
     <form method="post" action="/api/widgets">
+      <p class="helper-text">Simple setup: choose <strong>door</strong> for open/close sensors (on/off).</p>
       <label>Widget Name<input name="name" required></label>
       <label>Type
         <select name="widget_type">
-          <option>chart</option><option>switch</option><option>map</option><option>gauge</option><option>text</option>
+          <option>door</option><option>chart</option><option>switch</option><option>map</option><option>gauge</option><option>text</option>
         </select>
       </label>
       <label>Topic<input name="topic" placeholder="sensors/temp"></label>
-      <label>Config JSON<textarea name="config_json">{"color":"#00d4ff"}</textarea></label>
+      <label>Config JSON<textarea name="config_json">{"color":"#00d4ff","poll_seconds":5}</textarea></label>
       <button type="submit">Add Widget</button>
     </form>
   </section>
@@ -38,13 +39,28 @@
   <p><strong>Recommended authorization header:</strong> <code>Authorization: Bearer {{ user.api_key }}</code></p>
   <p><strong>Alternative header:</strong> <code>X-API-Key: {{ user.api_key }}</code></p>
   <p><strong>Legacy form field:</strong> include <code>api_key={{ user.api_key }}</code> in form data.</p>
+  <p><strong>Door sensor values:</strong> send <code>open</code>/<code>closed</code>, <code>on</code>/<code>off</code>, or <code>1</code>/<code>0</code>.</p>
   <details>
     <summary>Example curl command (template for your devices)</summary>
     <pre><code>curl -X POST http://192.168.56.1:8001/api/sensor/publish \
   -H "Authorization: Bearer {{ user.api_key }}" \
-  -F "topic=sensors/temp" \
-  -F "value=24.8"</code></pre>
+  -F "topic=sensors/door/front" \
+  -F "value=open"</code></pre>
   </details>
+</section>
+
+<section class="card">
+  <h3>Door Sensor Widget (Simple Open/Close)</h3>
+  <p>Set the topic below to match your door sensor feed. The widget auto-refreshes and shows OPEN/CLOSED clearly.</p>
+  <label>Door Topic
+    <input id="doorTopic" value="sensors/door/front" aria-describedby="doorTopicHelp">
+  </label>
+  <p id="doorTopicHelp" class="helper-text">Tip: this stays on this browser session for quick testing and audits.</p>
+  <div id="doorStatusWidget" class="door-widget door-unknown" role="status" aria-live="polite">
+    <p class="door-label">Door state</p>
+    <p id="doorStatusValue" class="door-state">UNKNOWN</p>
+    <p id="doorStatusMeta" class="door-meta">No data yet for this topic.</p>
+  </div>
 </section>
 
 <section class="card">

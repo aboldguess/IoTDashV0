@@ -48,7 +48,7 @@ class DashboardWidget(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
-    widget_type: Mapped[str] = mapped_column(String(40), nullable=False)  # chart/switch/map/gauge/text
+    widget_type: Mapped[str] = mapped_column(String(40), nullable=False)  # chart/switch/map/gauge/text/door
     config_json: Mapped[str] = mapped_column(Text, default="{}")
     topic: Mapped[str] = mapped_column(String(255), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

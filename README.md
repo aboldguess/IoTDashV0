@@ -121,12 +121,13 @@ curl -X POST http://192.168.56.1:8001/api/sensor/publish \
 ### User-facing features
 - [x] Splash page with clear getting-started CTA
 - [x] Secure auth (register/login/logout)
-- [x] Dashboard widget creation (chart/switch/map/gauge/text)
+- [x] Dashboard widget creation (door/chart/switch/map/gauge/text)
 - [x] API key based sensor publishing
 - [x] Actuator command UI
 - [x] Learning Zone/FAQ page
 - [x] Profile management with profile pic URL
 - [x] Manage Subscription view
+- [x] Door open/close status widget with on/off payload support
 - [ ] Drag-and-drop dashboard layout builder
 - [ ] Real-time MQTT websocket bridge
 - [ ] File/image upload for profile photos
@@ -146,6 +147,7 @@ curl -X POST http://192.168.56.1:8001/api/sensor/publish \
 
 ## Major feature log (branch order)
 1. `main` - Initial platform scaffold with secure auth, dashboard widgets, admin backend, help/splash UI, and Stripe-ready subscription flow.
+2. `work` - Added a simple door open/close widget with OPEN/CLOSED state display, flexible sensor payload parsing (open/closed/on/off/1/0), and dedicated tests.
 
 ---
 
