@@ -18,7 +18,8 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.config import settings
 from app.database import Base, SessionLocal, engine, get_db
 from app.deps import get_current_user, require_admin
-from app.models import DashboardWidget, SiteConfig, SubscriptionTier, User
+from app.models import DashboardWidget, SensorEnrollment, SiteConfig, SubscriptionTier, User
+from app.mqtt_service import init_mqtt_manager
 from app.routers import admin, auth, dashboard
 from app.security import generate_api_key, hash_password
 
@@ -35,6 +36,7 @@ stripe.api_key = settings.stripe_secret_key
 @app.on_event("startup")
 def startup():
     Base.metadata.create_all(bind=engine)
+    init_mqtt_manager(SessionLocal)
     db = SessionLocal()
     try:
         if not db.execute(select(SubscriptionTier)).first():
@@ -84,8 +86,9 @@ def login_page(request: Request):
 @app.get("/dashboard")
 def dashboard_page(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     widgets = db.execute(select(DashboardWidget).where(DashboardWidget.owner_id == user.id).order_by(DashboardWidget.created_at.desc())).scalars().all()
+    sensors = db.execute(select(SensorEnrollment).where(SensorEnrollment.owner_id == user.id).order_by(SensorEnrollment.created_at.desc())).scalars().all()
     flash = request.session.pop("flash", None)
-    return templates.TemplateResponse("dashboard.html", {"request": request, "user": user, "widgets": widgets, "flash": flash})
+    return templates.TemplateResponse("dashboard.html", {"request": request, "user": user, "widgets": widgets, "sensors": sensors, "flash": flash})
 
 
 @app.get("/help")

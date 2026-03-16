@@ -1,7 +1,7 @@
 """
 Mini README:
 This file contains database models for users, plans, widgets, sensor datapoints,
-site settings, and actuator commands powering the IoT dashboard and admin backend.
+site settings, MQTT sensor enrollment, and actuator commands powering the IoT dashboard.
 """
 
 from datetime import datetime
@@ -40,6 +40,7 @@ class User(Base):
 
     subscription_tier: Mapped[SubscriptionTier | None] = relationship()
     widgets: Mapped[list["DashboardWidget"]] = relationship(back_populates="owner")
+    enrolled_sensors: Mapped[list["SensorEnrollment"]] = relationship(back_populates="owner")
 
 
 class DashboardWidget(Base):
@@ -54,6 +55,20 @@ class DashboardWidget(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     owner: Mapped[User] = relationship(back_populates="widgets")
+
+
+class SensorEnrollment(Base):
+    __tablename__ = "sensor_enrollments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    sensor_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    topic: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    qos: Mapped[int] = mapped_column(Integer, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    owner: Mapped[User] = relationship(back_populates="enrolled_sensors")
 
 
 class SensorDataPoint(Base):

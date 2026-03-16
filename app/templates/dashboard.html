@@ -1,4 +1,4 @@
-{# Mini README: Main IoT dashboard page containing widget builder, chart, and actuator controls. #}
+{# Mini README: Main IoT dashboard page containing widget builder, chart, actuator, and MQTT controls. #}
 {% extends "base.html" %}
 {% block content %}
 <h1>Welcome, {{ user.full_name or user.email }}</h1>
@@ -30,32 +30,69 @@
     <p>Tip: devices poll actuator commands via your backend integrations.</p>
   </section>
 </div>
+
+<div class="grid2">
+  <section class="card">
+    <h3>Mosquitto Connection Test</h3>
+    <p class="helper-text">Step 1: connect this dashboard backend to your Mosquitto broker.</p>
+    <form method="post" action="/api/mqtt/connect">
+      <label>Broker Host<input name="host" placeholder="192.168.1.10" required></label>
+      <label>Broker Port<input name="port" type="number" value="1883" required></label>
+      <label>Username<input name="username" placeholder="optional"></label>
+      <label>Password<input name="password" type="password" placeholder="optional"></label>
+      <label><input name="tls_enabled" type="checkbox" value="true"> Enable TLS</label>
+      <button type="submit">Connect + Test</button>
+    </form>
+    <p id="mqttStatusText">Live status: checking...</p>
+  </section>
+  <section class="card">
+    <h3>Publish MQTT Test Message</h3>
+    <p class="helper-text">Step 2: verify outbound publish works against your broker.</p>
+    <form method="post" action="/api/mqtt/publish">
+      <label>Topic<input name="topic" value="sensors/test"></label>
+      <label>Payload<input name="payload" value='{"value": 24.2}'></label>
+      <label>QoS<input name="qos" type="number" min="0" max="2" value="0"></label>
+      <label><input name="retain" type="checkbox" value="true"> Retain</label>
+      <button type="submit">Publish</button>
+    </form>
+  </section>
+</div>
+
 <section class="card">
-  <h3>Device API Integration (Your Current Setup)</h3>
+  <h3>Enroll New Sensor (Subscribe + Store + Plot)</h3>
+  <p class="helper-text">Step 3: enroll each sensor topic so inbound MQTT messages are stored for your charts and widgets.</p>
+  <form method="post" action="/api/mqtt/enroll">
+    <label>Sensor Name<input name="sensor_name" placeholder="Front Door" required></label>
+    <label>Topic<input name="topic" placeholder="sensors/door/front" required></label>
+    <label>QoS<input name="qos" type="number" min="0" max="2" value="0"></label>
+    <button type="submit">Enroll Sensor Topic</button>
+  </form>
+  {% if sensors %}
+  <h4>Enrolled Sensors</h4>
+  <ul>
+    {% for sensor in sensors %}
+    <li><strong>{{ sensor.sensor_name }}</strong> — <code>{{ sensor.topic }}</code> (QoS {{ sensor.qos }})</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>No sensors enrolled yet.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h3>Device API Integration (HTTP fallback)</h3>
   <p>
-    From your IoT devices on the same network, post sensor data to:
+    If your device does not publish directly to MQTT yet, it can still post sensor data to:
     <code>http://192.168.56.1:8001/api/sensor/publish</code>
   </p>
-  <p><strong>Recommended authorization header:</strong> <code>Authorization: Bearer {{ user.api_key }}</code></p>
-  <p><strong>Alternative header:</strong> <code>X-API-Key: {{ user.api_key }}</code></p>
-  <p><strong>Legacy form field:</strong> include <code>api_key={{ user.api_key }}</code> in form data.</p>
-  <p><strong>Door sensor values:</strong> send <code>open</code>/<code>closed</code>, <code>on</code>/<code>off</code>, or <code>1</code>/<code>0</code>.</p>
-  <details>
-    <summary>Example curl command (template for your devices)</summary>
-    <pre><code>curl -X POST http://192.168.56.1:8001/api/sensor/publish \
-  -H "Authorization: Bearer {{ user.api_key }}" \
-  -F "topic=sensors/door/front" \
-  -F "value=open"</code></pre>
-  </details>
 </section>
 
 <section class="card">
   <h3>Door Sensor Widget (Simple Open/Close)</h3>
-  <p>Set the topic below to match your door sensor feed. The widget auto-refreshes and shows OPEN/CLOSED clearly.</p>
   <label>Door Topic
     <input id="doorTopic" value="sensors/door/front" aria-describedby="doorTopicHelp">
   </label>
-  <p id="doorTopicHelp" class="helper-text">Tip: this stays on this browser session for quick testing and audits.</p>
+  <p id="doorTopicHelp" class="helper-text">Tip: topic value is kept in your browser for quick debugging.</p>
   <div id="doorStatusWidget" class="door-widget door-unknown" role="status" aria-live="polite">
     <p class="door-label">Door state</p>
     <p id="doorStatusValue" class="door-state">UNKNOWN</p>
