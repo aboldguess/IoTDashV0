@@ -4,7 +4,7 @@
 
 ## What this project includes
 - Secure login/registration with hashed passwords, session auth, and role-based access.
-- User dashboard supporting IoT-style widgets (chart/switch/map/gauge/text), sensor publishing APIs, and actuator commands.
+- User dashboard supporting IoT-style widgets (chart/switch/map/gauge/text), Mosquitto MQTT connect/test/pub/sub workflows, sensor enrollment, and actuator commands.
 - Admin backend for user management, subscription tier CRUD, pricing/usage limits, and site configuration.
 - Learning Zone / Help section and an engaging splash page.
 - Stripe-ready subscription checkout hook.
@@ -114,6 +114,20 @@ curl -X POST http://192.168.56.1:8001/api/sensor/publish \
   -F "value=24.8"
 ```
 
+
+
+## Mosquitto MQTT integration quick flow
+1. Login to `/dashboard`.
+2. Use **Mosquitto Connection Test** card to connect to your broker (`host`, `port`, optional auth, optional TLS).
+3. Use **Publish MQTT Test Message** to verify publish path.
+4. Use **Enroll New Sensor** to subscribe to each sensor topic.
+5. Watch **Live Sensor Preview** and door/status widgets update as messages arrive.
+
+Example test message from another terminal:
+```bash
+mosquitto_pub -h 127.0.0.1 -p 1883 -t sensors/door/front -m open
+```
+
 ---
 
 ## Feature roadmap
@@ -129,7 +143,8 @@ curl -X POST http://192.168.56.1:8001/api/sensor/publish \
 - [x] Manage Subscription view
 - [x] Door open/close status widget with on/off payload support
 - [ ] Drag-and-drop dashboard layout builder
-- [ ] Real-time MQTT websocket bridge
+- [x] Mosquitto MQTT broker integration (connect + status + publish + subscribe)
+- [x] Sensor enrollment flow for topic subscription and automatic data persistence
 - [ ] File/image upload for profile photos
 
 ### Backend and platform improvements
@@ -148,6 +163,7 @@ curl -X POST http://192.168.56.1:8001/api/sensor/publish \
 ## Major feature log (branch order)
 1. `main` - Initial platform scaffold with secure auth, dashboard widgets, admin backend, help/splash UI, and Stripe-ready subscription flow.
 2. `work` - Added a simple door open/close widget with OPEN/CLOSED state display, flexible sensor payload parsing (open/closed/on/off/1/0), and dedicated tests.
+3. `work` - Added end-to-end Mosquitto integration: broker connection test, live status panel, MQTT publish endpoint, topic enrollment/subscription, and automatic chart persistence for subscribed sensor topics.
 
 ---
 

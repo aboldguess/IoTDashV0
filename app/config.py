@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     stripe_secret_key: str = ""
     stripe_publishable_key: str = ""
     stripe_webhook_secret: str = ""
+    mqtt_default_host: str = "localhost"
+    mqtt_default_port: int = 1883
+    mqtt_default_tls_enabled: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

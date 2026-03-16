@@ -118,3 +118,28 @@ setInterval(loadSensorChart, 10000);
 bindDoorTopicInput();
 refreshDoorWidget();
 setInterval(refreshDoorWidget, 5000);
+
+
+async function refreshMqttStatus() {
+  const statusEl = document.getElementById('mqttStatusText');
+  if (!statusEl) return;
+
+  try {
+    const response = await fetch('/api/mqtt/status');
+    if (!response.ok) {
+      statusEl.textContent = 'Live status: unable to fetch MQTT status.';
+      return;
+    }
+    const status = await response.json();
+    const topics = Object.keys(status.subscribed_topics || {});
+    statusEl.textContent = status.connected
+      ? `Live status: CONNECTED to ${status.host}:${status.port} | Subscriptions: ${topics.length}`
+      : `Live status: DISCONNECTED${status.last_error ? ` | ${status.last_error}` : ''}`;
+  } catch (error) {
+    statusEl.textContent = 'Live status: MQTT status request failed.';
+    console.error('MQTT status refresh failed:', error);
+  }
+}
+
+refreshMqttStatus();
+setInterval(refreshMqttStatus, 5000);

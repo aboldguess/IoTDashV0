@@ -8,7 +8,8 @@ import unittest
 
 from fastapi import HTTPException
 
-from app.routers.dashboard import ALLOWED_WIDGET_TYPES, parse_sensor_value, sensor_value_to_door_state
+from app.routers.dashboard import ALLOWED_WIDGET_TYPES
+from app.sensor_utils import parse_sensor_value, sensor_value_to_door_state
 
 
 class DoorSensorParsingTests(unittest.TestCase):

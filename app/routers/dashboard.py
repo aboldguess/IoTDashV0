@@ -1,11 +1,10 @@
 """
 Mini README:
-User-facing dashboard routes for widgets, sensor ingestion, charts, and actuator commands.
-Provides Adafruit IO-like primitives: feeds/topics, controls, and mixed widgets.
+User-facing dashboard routes for widgets, sensor ingestion, charts, actuator commands,
+and Mosquitto MQTT integration (connect/test/pub/sub/enrollment).
 """
 
 import json
-
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, Header, HTTPException, Request
@@ -15,29 +14,12 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import get_current_user
-from app.models import ActuatorCommand, DashboardWidget, SensorDataPoint, User
+from app.models import ActuatorCommand, DashboardWidget, SensorDataPoint, SensorEnrollment, User
+from app.mqtt_service import mqtt_manager
+from app.sensor_utils import parse_sensor_value, sensor_value_to_door_state
 
 router = APIRouter(prefix="/api", tags=["dashboard-api"])
 ALLOWED_WIDGET_TYPES = {"chart", "switch", "map", "gauge", "text", "door"}
-
-
-def parse_sensor_value(raw_value: str) -> float:
-    """Convert sensor payloads into a numeric value for storage and charting."""
-    normalized_value = raw_value.strip().lower()
-    if normalized_value in {"on", "open", "true"}:
-        return 1.0
-    if normalized_value in {"off", "closed", "false"}:
-        return 0.0
-
-    try:
-        return float(raw_value)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail="Sensor value must be numeric or on/off style text") from exc
-
-
-def sensor_value_to_door_state(value: float) -> str:
-    """Interpret a numeric value as an OPEN/CLOSED door state."""
-    return "OPEN" if value >= 0.5 else "CLOSED"
 
 
 @router.post("/widgets")
@@ -77,6 +59,116 @@ def create_widget(
         return RedirectResponse(url="/dashboard", status_code=303)
 
     return {"ok": True, "widget_id": widget.id}
+
+
+@router.post("/mqtt/connect")
+def mqtt_connect(
+    request: Request,
+    host: str = Form(...),
+    port: int = Form(1883),
+    username: str = Form(""),
+    password: str = Form(""),
+    tls_enabled: bool = Form(False),
+    user: User = Depends(get_current_user),
+):
+    if not mqtt_manager:
+        raise HTTPException(status_code=503, detail="MQTT manager is not available")
+    status = mqtt_manager.connect(host=host.strip(), port=port, username=username.strip(), password=password, tls_enabled=tls_enabled)
+    message = f"MQTT connection {'successful' if status.connected else 'failed'} to {host}:{port}."
+    if status.last_error:
+        message += f" Error: {status.last_error}"
+
+    if "text/html" in request.headers.get("accept", ""):
+        request.session["flash"] = message
+        return RedirectResponse(url="/dashboard", status_code=303)
+    return {"ok": status.connected, "status": status.__dict__}
+
+
+@router.get("/mqtt/status")
+def mqtt_status(user: User = Depends(get_current_user)):
+    if not mqtt_manager:
+        raise HTTPException(status_code=503, detail="MQTT manager is not available")
+    status = mqtt_manager.status()
+    return status.__dict__
+
+
+@router.post("/mqtt/publish")
+def mqtt_publish(
+    request: Request,
+    topic: str = Form(...),
+    payload: str = Form(...),
+    qos: int = Form(0),
+    retain: bool = Form(False),
+    user: User = Depends(get_current_user),
+):
+    if not mqtt_manager:
+        raise HTTPException(status_code=503, detail="MQTT manager is not available")
+    result = mqtt_manager.publish(topic=topic.strip(), payload=payload, qos=qos, retain=retain)
+    if "text/html" in request.headers.get("accept", ""):
+        request.session["flash"] = "MQTT publish sent." if result.get("ok") else f"MQTT publish failed: {result.get('error', 'unknown')}"
+        return RedirectResponse(url="/dashboard", status_code=303)
+    return result
+
+
+@router.post("/mqtt/enroll")
+def mqtt_enroll_sensor(
+    request: Request,
+    sensor_name: str = Form(...),
+    topic: str = Form(...),
+    qos: int = Form(0),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    cleaned_topic = topic.strip()
+    if not cleaned_topic:
+        raise HTTPException(status_code=400, detail="Topic is required")
+
+    existing = db.execute(
+        select(SensorEnrollment).where(SensorEnrollment.owner_id == user.id, SensorEnrollment.topic == cleaned_topic)
+    ).scalar_one_or_none()
+    if existing:
+        existing.sensor_name = sensor_name.strip()
+        existing.qos = qos
+        existing.is_active = True
+        enrollment = existing
+    else:
+        enrollment = SensorEnrollment(owner_id=user.id, sensor_name=sensor_name.strip(), topic=cleaned_topic, qos=qos)
+        db.add(enrollment)
+    db.commit()
+
+    subscribed = False
+    if mqtt_manager:
+        subscribed = bool(mqtt_manager.subscribe(cleaned_topic, qos=qos).get("ok"))
+
+    flash_message = f"Sensor '{enrollment.sensor_name}' enrolled on topic '{cleaned_topic}'."
+    if not subscribed:
+        flash_message += " MQTT subscription pending until broker connection succeeds."
+
+    if "text/html" in request.headers.get("accept", ""):
+        request.session["flash"] = flash_message
+        return RedirectResponse(url="/dashboard", status_code=303)
+
+    return {"ok": True, "subscribed": subscribed}
+
+
+@router.get("/sensors")
+def list_enrolled_sensors(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    sensors = (
+        db.execute(select(SensorEnrollment).where(SensorEnrollment.owner_id == user.id).order_by(desc(SensorEnrollment.created_at)))
+        .scalars()
+        .all()
+    )
+    return [
+        {
+            "id": s.id,
+            "sensor_name": s.sensor_name,
+            "topic": s.topic,
+            "qos": s.qos,
+            "is_active": s.is_active,
+            "created_at": s.created_at.isoformat(),
+        }
+        for s in sensors
+    ]
 
 
 @router.post("/sensor/publish")
@@ -120,9 +212,7 @@ def latest_sensor_data(user: User = Depends(get_current_user), db: Session = Dep
         .scalars()
         .all()
     )
-    return [
-        {"topic": p.topic, "value": p.value, "created_at": p.created_at.isoformat()} for p in reversed(points)
-    ]
+    return [{"topic": p.topic, "value": p.value, "created_at": p.created_at.isoformat()} for p in reversed(points)]
 
 
 @router.get("/sensor/door-status")
@@ -174,7 +264,4 @@ def send_command(
 @router.get("/widgets")
 def list_widgets(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     widgets = db.execute(select(DashboardWidget).where(DashboardWidget.owner_id == user.id)).scalars().all()
-    return [
-        {"name": w.name, "widget_type": w.widget_type, "topic": w.topic, "config": json.loads(w.config_json), "id": w.id}
-        for w in widgets
-    ]
+    return [{"name": w.name, "widget_type": w.widget_type, "topic": w.topic, "config": json.loads(w.config_json), "id": w.id} for w in widgets]
