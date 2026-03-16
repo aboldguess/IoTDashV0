@@ -27,6 +27,16 @@ class MQTTManagerOfflineTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertIn("not connected", result["error"])
 
+    def test_normalize_broker_endpoint_accepts_scheme_and_port(self):
+        host, port = self.manager._normalize_broker_endpoint("mqtt://172.19.0.29:1883", 1884)
+        self.assertEqual(host, "172.19.0.29")
+        self.assertEqual(port, 1883)
+
+    def test_normalize_broker_endpoint_accepts_host_with_inline_port(self):
+        host, port = self.manager._normalize_broker_endpoint("172.19.0.29:1883", 1884)
+        self.assertEqual(host, "172.19.0.29")
+        self.assertEqual(port, 1883)
+
 
 if __name__ == "__main__":
     unittest.main()
