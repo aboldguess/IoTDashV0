@@ -13,6 +13,7 @@ import logging
 import threading
 import uuid
 from dataclasses import dataclass, field
+from urllib.parse import urlparse
 
 import paho.mqtt.client as mqtt
 from sqlalchemy import select
@@ -51,6 +52,32 @@ class MQTTManager:
         client.on_disconnect = self._on_disconnect
         client.on_message = self._on_message
         return client
+
+    @staticmethod
+    def _normalize_broker_endpoint(host: str, port: int) -> tuple[str, int]:
+        """Normalize user-provided MQTT broker values into host+port safe for paho connect."""
+        cleaned_host = (host or "").strip()
+        cleaned_port = int(port)
+
+        if not cleaned_host:
+            raise ValueError("MQTT host is required")
+
+        # Accept values like "mqtt://172.19.0.29:1883" or "172.19.0.29:1883" from the UI.
+        # paho-mqtt expects host only, so we parse and strip protocol/path fragments.
+        candidate = cleaned_host
+        parsed = urlparse(cleaned_host)
+        if parsed.scheme and parsed.netloc:
+            candidate = parsed.netloc
+
+        if "/" in candidate:
+            candidate = candidate.split("/", 1)[0]
+
+        parsed_candidate = urlparse(f"//{candidate}")
+        normalized_host = parsed_candidate.hostname or candidate
+        if parsed_candidate.port:
+            cleaned_port = parsed_candidate.port
+
+        return normalized_host.strip("[]"), cleaned_port
 
     def _on_connect(self, client: mqtt.Client, userdata, flags, rc):
         with self._lock:
@@ -113,17 +140,30 @@ class MQTTManager:
             if self._client:
                 self.disconnect()
 
+            try:
+                normalized_host, normalized_port = self._normalize_broker_endpoint(host=host, port=port)
+            except ValueError as exc:
+                self._state = MQTTConnectionState(host=host, port=port, username=username, tls_enabled=tls_enabled)
+                self._state.connected = False
+                self._state.last_error = str(exc)
+                return self.status()
+
             client = self._build_client(client_id=f"iotdash-{uuid.uuid4().hex[:12]}")
             if username:
                 client.username_pw_set(username=username, password=password)
             if tls_enabled:
                 client.tls_set()
 
-            self._state = MQTTConnectionState(host=host, port=port, username=username, tls_enabled=tls_enabled)
+            self._state = MQTTConnectionState(
+                host=normalized_host,
+                port=normalized_port,
+                username=username,
+                tls_enabled=tls_enabled,
+            )
             self._client = client
 
             try:
-                client.connect(host, port, keepalive=keepalive)
+                client.connect(normalized_host, normalized_port, keepalive=keepalive)
                 client.loop_start()
             except Exception as exc:
                 self._state.last_error = str(exc)
