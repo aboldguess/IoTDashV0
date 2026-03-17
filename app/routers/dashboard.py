@@ -15,11 +15,16 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.deps import get_current_user
 from app.models import ActuatorCommand, DashboardWidget, SensorDataPoint, SensorEnrollment, User
-from app.mqtt_service import mqtt_manager
+from app import mqtt_service
 from app.sensor_utils import parse_sensor_value, sensor_value_to_door_state
 
 router = APIRouter(prefix="/api", tags=["dashboard-api"])
 ALLOWED_WIDGET_TYPES = {"chart", "switch", "map", "gauge", "text", "door"}
+
+
+def _get_mqtt_manager():
+    """Read MQTT manager from module state at call-time to avoid stale import references."""
+    return mqtt_service.mqtt_manager
 
 
 @router.post("/widgets")
@@ -71,9 +76,10 @@ def mqtt_connect(
     tls_enabled: bool = Form(False),
     user: User = Depends(get_current_user),
 ):
-    if not mqtt_manager:
+    manager = _get_mqtt_manager()
+    if not manager:
         raise HTTPException(status_code=503, detail="MQTT manager is not available")
-    status = mqtt_manager.connect(host=host.strip(), port=port, username=username.strip(), password=password, tls_enabled=tls_enabled)
+    status = manager.connect(host=host.strip(), port=port, username=username.strip(), password=password, tls_enabled=tls_enabled)
     message = f"MQTT connection {'successful' if status.connected else 'failed'} to {host}:{port}."
     if status.last_error:
         message += f" Error: {status.last_error}"
@@ -86,9 +92,10 @@ def mqtt_connect(
 
 @router.get("/mqtt/status")
 def mqtt_status(user: User = Depends(get_current_user)):
-    if not mqtt_manager:
+    manager = _get_mqtt_manager()
+    if not manager:
         raise HTTPException(status_code=503, detail="MQTT manager is not available")
-    status = mqtt_manager.status()
+    status = manager.status()
     return status.__dict__
 
 
@@ -101,9 +108,10 @@ def mqtt_publish(
     retain: bool = Form(False),
     user: User = Depends(get_current_user),
 ):
-    if not mqtt_manager:
+    manager = _get_mqtt_manager()
+    if not manager:
         raise HTTPException(status_code=503, detail="MQTT manager is not available")
-    result = mqtt_manager.publish(topic=topic.strip(), payload=payload, qos=qos, retain=retain)
+    result = manager.publish(topic=topic.strip(), payload=payload, qos=qos, retain=retain)
     if "text/html" in request.headers.get("accept", ""):
         request.session["flash"] = "MQTT publish sent." if result.get("ok") else f"MQTT publish failed: {result.get('error', 'unknown')}"
         return RedirectResponse(url="/dashboard", status_code=303)
@@ -137,8 +145,9 @@ def mqtt_enroll_sensor(
     db.commit()
 
     subscribed = False
-    if mqtt_manager:
-        subscribed = bool(mqtt_manager.subscribe(cleaned_topic, qos=qos).get("ok"))
+    manager = _get_mqtt_manager()
+    if manager:
+        subscribed = bool(manager.subscribe(cleaned_topic, qos=qos).get("ok"))
 
     flash_message = f"Sensor '{enrollment.sensor_name}' enrolled on topic '{cleaned_topic}'."
     if not subscribed:
